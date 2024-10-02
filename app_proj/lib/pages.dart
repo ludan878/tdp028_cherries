@@ -91,6 +91,8 @@ class TextPageState extends State<TextPage> {
         await FirebaseFirestore.instance.collection('randomTexts').get();
     final List<String> texts =
         snapshot.docs.map((doc) => doc['text'] as String).toList();
+    // Log the texts to the console
+    print(texts);
     setState(() {
       _randomTexts = texts;
     });
