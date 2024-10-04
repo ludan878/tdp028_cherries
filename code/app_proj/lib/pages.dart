@@ -132,6 +132,51 @@ class _LiveUpdatePageState extends State<LiveUpdatePage> {
     }
   }
 
+  void _deleteUpdate(String id) {
+    FirebaseFirestore.instance.collection('randomTexts').doc(id).delete();
+  }
+
+  void _editUpdate(String id, String currentText) {
+    final TextEditingController editController =
+        TextEditingController(text: currentText);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Edit Update'),
+          content: TextField(
+            controller: editController,
+            decoration: const InputDecoration(
+              labelText: 'Update text',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final String newText = editController.text;
+                if (newText.isNotEmpty) {
+                  FirebaseFirestore.instance
+                      .collection('randomTexts')
+                      .doc(id)
+                      .update({'text': newText});
+                }
+                Navigator.of(context).pop();
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -171,25 +216,33 @@ class _LiveUpdatePageState extends State<LiveUpdatePage> {
                   .collection('randomTexts')
                   .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (snapshot.hasError) {
-                  return const Center(child: Text('Error fetching data'));
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(child: Text('No updates available'));
-                }
 
-                final updates = snapshot.data!.docs
-                    .map((doc) => doc['text'] as String)
-                    .toList();
+                final documents = snapshot.data!.docs;
 
                 return ListView.builder(
-                  itemCount: updates.length,
+                  itemCount: documents.length,
                   itemBuilder: (context, index) {
+                    final doc = documents[index];
+                    final text = doc['text'];
+
                     return ListTile(
-                      title: Text(updates[index]),
+                      title: Text(text),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _editUpdate(doc.id, text),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => _deleteUpdate(doc.id),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 );
