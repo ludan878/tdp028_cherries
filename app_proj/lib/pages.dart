@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
 
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
@@ -47,24 +47,6 @@ class _MyHomePageState extends State<MyHomePage> {
         tooltip: 'Press to see something cool!',
         child: const Icon(Icons.add),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.text_fields),
-            label: 'Text',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.image),
-            label: 'Image',
-          ),
-        ],
-        currentIndex: 1,
-        onTap: (int index) {
-          if (index == 0) {
-            Navigator.pushNamed(context, '/text');
-          }
-        },
-      ),
     );
   }
 }
@@ -92,7 +74,6 @@ class TextPageState extends State<TextPage> {
     final List<String> texts =
         snapshot.docs.map((doc) => doc['text'] as String).toList();
     // Log the texts to the console
-    print(texts);
     setState(() {
       _randomTexts = texts;
     });
@@ -129,23 +110,93 @@ class TextPageState extends State<TextPage> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.text_fields),
-            label: 'Text',
+    );
+  }
+}
+
+class LiveUpdatePage extends StatefulWidget {
+  const LiveUpdatePage({super.key});
+
+  @override
+  _LiveUpdatePageState createState() => _LiveUpdatePageState();
+}
+
+class _LiveUpdatePageState extends State<LiveUpdatePage> {
+  final TextEditingController _controller = TextEditingController();
+
+  void _addUpdate() {
+    final String text = _controller.text;
+    if (text.isNotEmpty) {
+      FirebaseFirestore.instance.collection('randomTexts').add({'text': text});
+      _controller.clear();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text("Live Updates"),
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: const InputDecoration(
+                      labelText: 'Enter update',
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: _addUpdate,
+                ),
+              ],
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.image),
-            label: 'Image',
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('randomTexts')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return const Center(child: Text('Error fetching data'));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No updates available'));
+                }
+
+                final updates = snapshot.data!.docs
+                    .map((doc) => doc['text'] as String)
+                    .toList();
+
+                return ListView.builder(
+                  itemCount: updates.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      title: Text(updates[index]),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
-        currentIndex: 0,
-        onTap: (int index) {
-          if (index == 1) {
-            Navigator.pushNamed(context, '/img');
-          }
-        },
       ),
     );
   }
