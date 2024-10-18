@@ -1,0 +1,82 @@
+{
+  "project_info": {
+    "project_number": "96411862307",
+    "project_id": "reviewer-70fc0",
+    "storage_bucket": "reviewer-70fc0.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96411862307:android:e5a9d492615945b6e07896",
+        "android_client_info": {
+          "package_name": "com.example.app_proj"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "96411862307-n95u0ha46f2nkbv6udav45bltqc644dm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCACT3-KxedlGV1qUREZZX0EieuYc6K9RY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "96411862307-n95u0ha46f2nkbv6udav45bltqc644dm.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "96411862307-dqhhehk8cme4i87bg1o8eoc5frlphb5g.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cherries"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:96411862307:android:78dbe4b6af4acbffe07896",
+        "android_client_info": {
+          "package_name": "com.example.cherries"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "96411862307-n95u0ha46f2nkbv6udav45bltqc644dm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCACT3-KxedlGV1qUREZZX0EieuYc6K9RY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "96411862307-n95u0ha46f2nkbv6udav45bltqc644dm.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "96411862307-dqhhehk8cme4i87bg1o8eoc5frlphb5g.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.cherries"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
