@@ -2,7 +2,7 @@
   "project_info": {
     "project_number": "96411862307",
     "project_id": "reviewer-70fc0",
-    "storage_bucket": "reviewer-70fc0.appspot.com"
+    "storage_bucket": "reviewer-70fc0.firebasestorage.app"
   },
   "client": [
     {
@@ -49,6 +49,14 @@
         }
       },
       "oauth_client": [
+        {
+          "client_id": "96411862307-2cp1030pp6t8l24bvbl3bf6uggebatp4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.cherries",
+            "certificate_hash": "c06891211e84ebd2b0f9c5a276c3dc06167cfd2e"
+          }
+        },
         {
           "client_id": "96411862307-n95u0ha46f2nkbv6udav45bltqc644dm.apps.googleusercontent.com",
           "client_type": 3

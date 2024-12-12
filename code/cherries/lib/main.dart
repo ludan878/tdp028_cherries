@@ -1,112 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:go_router/go_router.dart';
-import 'pages.dart';
-import 'login.dart';
+import 'login_page.dart';
+import 'navigation_bar.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-  runApp(MyApp());
+  WidgetsFlutterBinding
+      .ensureInitialized(); // Required for async initialization
+  await Firebase.initializeApp(); // Initialize Firebase
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
-    final GoRouter _router = GoRouter(
-      routes: [
-        ShellRoute(
-          builder: (context, state, child) {
-            return ShellPage(child: child);
-          },
-          routes: [
-            // Login Route
-
-            GoRoute(
-              path: '/home',
-              builder: (context, state) => MyHomePage(title: 'Home Page'),
-            ),
-            GoRoute(
-              path: "/",
-              builder: (context, state) => MyHomePage(title: 'Home Page'),
-            ),
-            GoRoute(
-              path: '/text',
-              builder: (context, state) => TextPage(),
-            ),
-            GoRoute(
-              path: '/img',
-              builder: (context, state) => MyHomePage(title: 'Image Page'),
-            ),
-            GoRoute(
-              path: '/live-update',
-              builder: (context, state) => LiveUpdatePage(),
-            ),
-            GoRoute(
-              path: '/login',
-              builder: (context, state) => LoginPage(),
-            ),
-          ],
-        ),
-      ],
-    );
-
-    return MaterialApp.router(
-      routerConfig: _router,
-      title: 'Reviewer',
+    return MaterialApp(
+      title: 'Flutter App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
+      home: const AuthWrapper(),
     );
   }
 }
 
-class ShellPage extends StatefulWidget {
-  final Widget child;
-
-  const ShellPage({required this.child});
+class AuthWrapper extends StatefulWidget {
+  const AuthWrapper({super.key});
 
   @override
-  _ShellPageState createState() => _ShellPageState();
+  State<AuthWrapper> createState() => _AuthWrapperState();
 }
 
-class _ShellPageState extends State<ShellPage> {
-  int _selectedIndex = 0;
+class _AuthWrapperState extends State<AuthWrapper> {
+  bool _isLoggedIn = false;
+  bool _isLoading = true;
+  String? _userId;
 
-  static final List<Widget> _pages = <Widget>[
-    TextPage(),
-    MyHomePage(title: 'Image Page'),
-    LoginPage(),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStatus();
+  }
 
-  void _onItemTapped(int index) {
+  Future<void> _checkLoginStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userId =
+        prefs.getString('userId'); // Retrieve the userId from SharedPreferences
+
     setState(() {
-      _selectedIndex = index;
+      _isLoggedIn = userId != null; // Check if a userId exists
+      _userId = userId; // Save the userId if logged in
+      _isLoading = false;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.text_fields),
-            label: 'Text',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.image),
-            label: 'Image',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.update),
-            label: 'Live Update',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-      ),
-    );
+    if (_isLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Navigate to MainNavigation if logged in; otherwise, go to LoginPage
+    return _isLoggedIn
+        ? MainNavigation(userId: _userId!) // Pass userId to MainNavigation
+        : const LoginPage();
   }
 }
