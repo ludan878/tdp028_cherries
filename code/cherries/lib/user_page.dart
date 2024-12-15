@@ -20,9 +20,8 @@ class _UserPageState extends State<UserPage> {
   String? _username;
   String? _description;
   String? _profilePicture;
-  int _followersCount = 0;
-  int _followingCount = 0;
   bool _isCurrentUser = true;
+  bool _isFollowing = false; // Tracks follow state
   bool _isLoading = true;
 
   @override
@@ -46,9 +45,20 @@ class _UserPageState extends State<UserPage> {
           _username = data['username'];
           _description = data['description'] ?? "No description available.";
           _profilePicture = data['profilePicture'];
-          _followersCount = data['followers'] ?? 0;
-          _followingCount = data['following'] ?? 0;
         });
+
+        // Check follow state if viewing someone else's profile
+        if (!_isCurrentUser) {
+          final currentUserDoc =
+              await _firestore.collection('users').doc(_currentUser!.uid).get();
+          if (currentUserDoc.exists) {
+            final currentUserData = currentUserDoc.data()!;
+            final followingList = currentUserData['following'] as List? ?? [];
+            setState(() {
+              _isFollowing = followingList.contains(userId);
+            });
+          }
+        }
       }
     } catch (e) {
       print('Error fetching user data: $e');
@@ -56,6 +66,51 @@ class _UserPageState extends State<UserPage> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _toggleFollow() async {
+    final userId = widget.userId ?? _currentUser?.uid;
+    if (userId == null) return;
+
+    try {
+      final currentUserId = _currentUser!.uid;
+
+      // Start Firestore batch operation
+      final batch = _firestore.batch();
+
+      // References
+      final viewedUserRef = _firestore.collection('users').doc(userId);
+      final currentUserRef = _firestore.collection('users').doc(currentUserId);
+
+      if (_isFollowing) {
+        // Unfollow
+        batch.update(viewedUserRef, {
+          'followers': FieldValue.arrayRemove([currentUserId]),
+        });
+        batch.update(currentUserRef, {
+          'following': FieldValue.arrayRemove([userId]),
+        });
+        setState(() {
+          _isFollowing = false;
+        });
+      } else {
+        // Follow
+        batch.update(viewedUserRef, {
+          'followers': FieldValue.arrayUnion([currentUserId]),
+        });
+        batch.update(currentUserRef, {
+          'following': FieldValue.arrayUnion([userId]),
+        });
+        setState(() {
+          _isFollowing = true;
+        });
+      }
+
+      // Commit the batch
+      await batch.commit();
+    } catch (e) {
+      print('Error toggling follow: $e');
     }
   }
 
@@ -97,9 +152,6 @@ class _UserPageState extends State<UserPage> {
                   );
                 } catch (e) {
                   print('Error updating description: $e');
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Error updating description')),
-                  );
                 }
               }
             },
@@ -118,9 +170,7 @@ class _UserPageState extends State<UserPage> {
         (route) => false,
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error logging out: $e')),
-      );
+      print('Error logging out: $e');
     }
   }
 
@@ -141,8 +191,15 @@ class _UserPageState extends State<UserPage> {
         backgroundColor: Colors.black,
         elevation: 0,
         centerTitle: true,
-        title:
-            const Text('User Profile', style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'User Profile',
+          style: TextStyle(
+              color: Colors.white,
+              fontFamily: 'Mono',
+              fontSize: 24,
+              fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -150,20 +207,15 @@ class _UserPageState extends State<UserPage> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const SizedBox(height: 20),
-            Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                CircleAvatar(
-                  radius: 60,
-                  backgroundImage: _profilePicture != null
-                      ? NetworkImage(_profilePicture!)
-                      : null,
-                  backgroundColor: Colors.white,
-                  child: _profilePicture == null
-                      ? const Icon(Icons.person, size: 60, color: Colors.black)
-                      : null,
-                ),
-              ],
+            CircleAvatar(
+              radius: 60,
+              backgroundImage: _profilePicture != null
+                  ? NetworkImage(_profilePicture!)
+                  : null,
+              backgroundColor: Colors.white,
+              child: _profilePicture == null
+                  ? const Icon(Icons.person, size: 60, color: Colors.black)
+                  : null,
             ),
             const SizedBox(height: 20),
             Text(
@@ -180,50 +232,91 @@ class _UserPageState extends State<UserPage> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
-            if (_isCurrentUser)
-              ElevatedButton(
-                onPressed: _editDescription,
-                child: const Text('Edit Description'),
+            if (!_isCurrentUser)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: ElevatedButton(
+                  onPressed: _toggleFollow,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isFollowing ? Colors.grey : Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 12),
+                  ),
+                  child: Text(
+                    _isFollowing ? 'Unfollow' : 'Follow',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ),
               ),
             const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Column(
+            StreamBuilder<DocumentSnapshot>(
+              stream:
+                  _firestore.collection('users').doc(widget.userId).snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
+                }
+
+                if (!snapshot.hasData || snapshot.data == null) {
+                  return const Text(
+                    'Error loading data',
+                    style: TextStyle(color: Colors.grey, fontSize: 16),
+                  );
+                }
+
+                final data = snapshot.data!.data() as Map<String, dynamic>;
+                final followersField = data['followers'];
+                final followingField = data['following'];
+
+                // Safely handle types
+                final followersCount = (followersField is List)
+                    ? followersField.length
+                    : (followersField ?? 0);
+                final followingCount = (followingField is List)
+                    ? followingField.length
+                    : (followingField ?? 0);
+
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      '$_followersCount',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
+                    Column(
+                      children: [
+                        Text(
+                          '$followersCount',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Text(
+                          'Followers',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
                     ),
-                    const Text(
-                      'Followers',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    const SizedBox(width: 40),
+                    Column(
+                      children: [
+                        Text(
+                          '$followingCount',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
+                        const Text(
+                          'Following',
+                          style: TextStyle(fontSize: 16, color: Colors.grey),
+                        ),
+                      ],
                     ),
                   ],
-                ),
-                const SizedBox(width: 40),
-                Column(
-                  children: [
-                    Text(
-                      '$_followingCount',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const Text(
-                      'Following',
-                      style: TextStyle(fontSize: 16, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ],
+                );
+              },
             ),
+
             const SizedBox(height: 20),
 
             // Reviews Grid

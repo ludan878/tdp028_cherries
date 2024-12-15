@@ -18,7 +18,11 @@ class _PostViewState extends State<PostView> {
   Map<String, dynamic>? _postData;
   bool _isOwner = false;
   bool _isLoading = true;
+  bool _isLiked = false;
   String _username = 'Loading...';
+  int _likeCount = 0;
+
+  final TextEditingController _commentController = TextEditingController();
 
   @override
   void initState() {
@@ -35,6 +39,8 @@ class _PostViewState extends State<PostView> {
         setState(() {
           _postData = data;
           _isOwner = data?['userId'] == _currentUser?.uid;
+          _likeCount = data?['likes']?.length ?? 0;
+          _isLiked = data?['likes']?.contains(_currentUser?.uid) ?? false;
         });
 
         // Fetch the username
@@ -158,6 +164,66 @@ class _PostViewState extends State<PostView> {
     );
   }
 
+  Future<void> _toggleLike() async {
+    if (_postData == null || _currentUser == null) return;
+
+    final userId = _currentUser!.uid;
+    final likes = _postData?['likes'] ?? [];
+
+    try {
+      if (_isLiked) {
+        // Unlike the post
+        await _firestore.collection('reviews').doc(widget.postId).update({
+          'likes': FieldValue.arrayRemove([userId]),
+        });
+        setState(() {
+          _isLiked = false;
+          _likeCount -= 1;
+        });
+      } else {
+        // Like the post
+        await _firestore.collection('reviews').doc(widget.postId).update({
+          'likes': FieldValue.arrayUnion([userId]),
+        });
+        setState(() {
+          _isLiked = true;
+          _likeCount += 1;
+        });
+      }
+    } catch (e) {
+      print('Error toggling like: $e');
+    }
+  }
+
+  Future<void> _postComment(String commentText) async {
+    if (commentText.trim().isEmpty || _currentUser == null) return;
+
+    try {
+      // Fetch the username of the current user
+      final currentUserDoc =
+          await _firestore.collection('users').doc(_currentUser!.uid).get();
+      final currentUsername = currentUserDoc.data()?['username'] ?? 'Unknown';
+
+      // Create a new comment
+      final newComment = {
+        'userId': _currentUser!.uid,
+        'username': currentUsername, // Save the commenter's username
+        'text': commentText,
+        'timestamp': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore
+          .collection('reviews')
+          .doc(widget.postId)
+          .collection('comments')
+          .add(newComment);
+
+      _commentController.clear();
+    } catch (e) {
+      print('Error posting comment: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -190,7 +256,6 @@ class _PostViewState extends State<PostView> {
     final description = _postData?['description'] ?? 'No description';
     final restaurantName = _postData?['restaurantName'] ?? 'Unknown';
     final rating = _postData?['rating'] ?? 0.0;
-    final userId = _postData?['userId'];
     final date = (_postData?['timestamp'] as Timestamp?)
             ?.toDate()
             .toLocal()
@@ -239,6 +304,7 @@ class _PostViewState extends State<PostView> {
               children: [
                 GestureDetector(
                   onTap: () {
+                    final userId = _postData?['userId'];
                     if (userId != null) {
                       Navigator.push(
                         context,
@@ -273,12 +339,117 @@ class _PostViewState extends State<PostView> {
                   rating.toStringAsFixed(1),
                   style: const TextStyle(fontSize: 18, color: Colors.white),
                 ),
+                const Spacer(),
+                IconButton(
+                  icon: Icon(
+                    _isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: _isLiked ? Colors.red : Colors.white,
+                  ),
+                  onPressed: _toggleLike,
+                ),
+                Text(
+                  '$_likeCount',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ],
             ),
             const SizedBox(height: 20),
             Text(
               description,
               style: const TextStyle(fontSize: 16, color: Colors.white),
+            ),
+            const Divider(color: Colors.grey),
+            const SizedBox(height: 10),
+            const Text(
+              'Comments',
+              style: TextStyle(color: Colors.white, fontSize: 18),
+            ),
+            StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('reviews')
+                  .doc(widget.postId)
+                  .collection('comments')
+                  .orderBy('timestamp', descending: true)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  );
+                }
+
+                final comments = snapshot.data!.docs;
+
+                if (comments.isEmpty) {
+                  return const Text(
+                    'No comments yet.',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: comments.length,
+                  itemBuilder: (context, index) {
+                    final comment =
+                        comments[index].data() as Map<String, dynamic>;
+                    final username = comment['username'] ?? 'Unknown';
+                    final text = comment['text'] ?? '';
+                    final timestamp = (comment['timestamp'] as Timestamp?)
+                        ?.toDate()
+                        .toLocal()
+                        .toString()
+                        .split(' ')[0];
+
+                    return ListTile(
+                      title: Text(
+                        username,
+                        style: const TextStyle(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      subtitle: Text(
+                        text,
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      trailing: Text(
+                        timestamp ?? '',
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 12),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Add a comment...',
+                      hintStyle: const TextStyle(color: Colors.grey),
+                      filled: true,
+                      fillColor: Colors.grey[800],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.blue),
+                  onPressed: () {
+                    _postComment(_commentController.text.trim());
+                  },
+                ),
+              ],
             ),
           ],
         ),

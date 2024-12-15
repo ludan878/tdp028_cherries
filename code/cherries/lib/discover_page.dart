@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // For saving the last location
 import 'post_view.dart';
 
 class DiscoverPage extends StatefulWidget {
@@ -23,12 +24,44 @@ class _DiscoverPageState extends State<DiscoverPage> {
   @override
   void initState() {
     super.initState();
-    _fetchCurrentLocationAndReviews();
+    _loadLastLocation();
   }
 
-  Future<void> _fetchCurrentLocationAndReviews() async {
+  Future<void> _loadLastLocation() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      // Fetch current location
+      final prefs = await SharedPreferences.getInstance();
+      final lat = prefs.getDouble('last_lat');
+      final lng = prefs.getDouble('last_lng');
+
+      if (lat != null && lng != null) {
+        _selectedLocation = LatLng(lat, lng);
+      } else {
+        await _getCurrentLocation();
+      }
+
+      await _fetchReviews(_selectedLocation!);
+    } catch (e) {
+      print('Error loading last location: $e');
+      await _getCurrentLocation();
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _saveLastLocation(LatLng location) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('last_lat', location.latitude);
+    await prefs.setDouble('last_lng', location.longitude);
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -37,14 +70,10 @@ class _DiscoverPageState extends State<DiscoverPage> {
         _selectedLocation = _currentLocation;
       });
 
-      // Fetch nearby reviews
-      await _fetchReviews(_selectedLocation!);
+      await _saveLastLocation(_currentLocation!);
+      await _fetchReviews(_currentLocation!);
     } catch (e) {
-      print('Error fetching location: $e');
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      print('Error fetching current location: $e');
     }
   }
 
@@ -114,6 +143,7 @@ class _DiscoverPageState extends State<DiscoverPage> {
       setState(() {
         _selectedLocation = pickedLocation;
       });
+      await _saveLastLocation(_selectedLocation!);
       await _fetchReviews(_selectedLocation!);
     }
   }
@@ -133,16 +163,16 @@ class _DiscoverPageState extends State<DiscoverPage> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Discover'),
+        title: const Text(
+          'Discover',
+          style: TextStyle(
+              color: Colors.white,
+              fontFamily: 'Mono',
+              fontSize: 24,
+              fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+        ),
         backgroundColor: Colors.black,
-        actions: [
-          // Reset Button
-          IconButton(
-            icon: const Icon(Icons.refresh, color: Colors.white),
-            onPressed: _resetFilters,
-            tooltip: 'Reset Filters',
-          ),
-        ],
       ),
       body: Column(
         children: [
@@ -151,7 +181,17 @@ class _DiscoverPageState extends State<DiscoverPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Location Picker Button
+                ElevatedButton.icon(
+                  onPressed: _getCurrentLocation,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[800],
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16.0, vertical: 12.0),
+                  ),
+                  icon: const Icon(Icons.my_location, color: Colors.white),
+                  label: const Text('Current Location',
+                      style: TextStyle(color: Colors.white)),
+                ),
                 ElevatedButton.icon(
                   onPressed: _selectLocation,
                   style: ElevatedButton.styleFrom(
@@ -160,43 +200,49 @@ class _DiscoverPageState extends State<DiscoverPage> {
                         horizontal: 16.0, vertical: 12.0),
                   ),
                   icon: const Icon(Icons.location_on, color: Colors.white),
-                  label: Text(
-                    _selectedLocation != null
-                        ? 'Lat: ${_selectedLocation!.latitude.toStringAsFixed(2)}, Lng: ${_selectedLocation!.longitude.toStringAsFixed(2)}'
-                        : 'Pick Location',
-                    style: const TextStyle(color: Colors.white),
-                  ),
+                  label: const Text('Pick Location',
+                      style: TextStyle(color: Colors.white)),
                 ),
-                // Radius Dropdown
-                DropdownButton<double>(
-                  value: _filterRadius,
-                  dropdownColor: Colors.grey[900],
-                  style: const TextStyle(color: Colors.white),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 1000,
-                      child: Text('1 km'),
-                    ),
-                    DropdownMenuItem(
-                      value: 5000,
-                      child: Text('5 km'),
-                    ),
-                    DropdownMenuItem(
-                      value: 10000,
-                      child: Text('10 km'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() {
-                        _filterRadius = value;
-                      });
-                      _fetchReviews(_selectedLocation!);
-                    }
-                  },
+                IconButton(
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  onPressed: _resetFilters,
+                  tooltip: 'Reset Filters',
                 ),
               ],
             ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Radius:', style: TextStyle(color: Colors.white)),
+              DropdownButton<double>(
+                value: _filterRadius,
+                dropdownColor: Colors.grey[900],
+                style: const TextStyle(color: Colors.white),
+                items: const [
+                  DropdownMenuItem(
+                    value: 1000,
+                    child: Text('1 km'),
+                  ),
+                  DropdownMenuItem(
+                    value: 5000,
+                    child: Text('5 km'),
+                  ),
+                  DropdownMenuItem(
+                    value: 10000,
+                    child: Text('10 km'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() {
+                      _filterRadius = value;
+                    });
+                    _fetchReviews(_selectedLocation!);
+                  }
+                },
+              ),
+            ],
           ),
           Expanded(
             child: _isLoading

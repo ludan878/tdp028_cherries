@@ -46,8 +46,8 @@ class _UsernameSetupPageState extends State<UsernameSetupPage> {
           'username': username,
           'email': widget.email,
           'profilePicture': widget.photoUrl ?? '',
-          'followers': 0,
-          'follows': 0,
+          'followers': [],
+          'follows': [],
           'likes': 0,
           'reviews': [], // Add an empty reviews array for future reviews
         });
