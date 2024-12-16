@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -35,6 +34,10 @@ class _UserPageState extends State<UserPage> {
   Future<void> _fetchUserData() async {
     final userId = widget.userId ?? _currentUser?.uid;
     if (userId == null) return;
+
+    setState(() {
+      _isCurrentUser = userId == _currentUser?.uid;
+    });
 
     try {
       // Fetch user data
@@ -76,7 +79,6 @@ class _UserPageState extends State<UserPage> {
     try {
       final currentUserId = _currentUser!.uid;
 
-      // Start Firestore batch operation
       final batch = _firestore.batch();
 
       // References
@@ -107,7 +109,6 @@ class _UserPageState extends State<UserPage> {
         });
       }
 
-      // Commit the batch
       await batch.commit();
     } catch (e) {
       print('Error toggling follow: $e');
@@ -121,18 +122,24 @@ class _UserPageState extends State<UserPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Description'),
+        title: const Text(
+          'Edit Description',
+          style: TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.grey[900],
         content: TextField(
           controller: descriptionController,
           maxLines: 4,
+          style: const TextStyle(color: Colors.white),
           decoration: const InputDecoration(
             hintText: 'Enter a new description...',
+            hintStyle: TextStyle(color: Colors.grey),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white)),
           ),
           TextButton(
             onPressed: () async {
@@ -155,7 +162,7 @@ class _UserPageState extends State<UserPage> {
                 }
               }
             },
-            child: const Text('Save'),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -198,8 +205,15 @@ class _UserPageState extends State<UserPage> {
               fontFamily: 'Mono',
               fontSize: 24,
               fontWeight: FontWeight.bold),
-          textAlign: TextAlign.center,
         ),
+        actions: [
+          if (_isCurrentUser)
+            IconButton(
+              icon: const Icon(Icons.logout, color: Colors.white),
+              onPressed: _logout,
+              tooltip: 'Logout',
+            ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -232,6 +246,22 @@ class _UserPageState extends State<UserPage> {
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16, color: Colors.grey),
             ),
+            if (_isCurrentUser)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: ElevatedButton(
+                  onPressed: _editDescription,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 12),
+                  ),
+                  child: const Text(
+                    'Edit Description',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ),
             if (!_isCurrentUser)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 10),
@@ -249,32 +279,21 @@ class _UserPageState extends State<UserPage> {
                 ),
               ),
             const SizedBox(height: 20),
+
+            // Followers/Following counts
             StreamBuilder<DocumentSnapshot>(
               stream:
                   _firestore.collection('users').doc(widget.userId).snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const CircularProgressIndicator();
-                }
-
-                if (!snapshot.hasData || snapshot.data == null) {
-                  return const Text(
-                    'Error loading data',
-                    style: TextStyle(color: Colors.grey, fontSize: 16),
-                  );
+                if (!snapshot.hasData) {
+                  return const CircularProgressIndicator(color: Colors.white);
                 }
 
                 final data = snapshot.data!.data() as Map<String, dynamic>;
-                final followersField = data['followers'];
-                final followingField = data['following'];
-
-                // Safely handle types
-                final followersCount = (followersField is List)
-                    ? followersField.length
-                    : (followersField ?? 0);
-                final followingCount = (followingField is List)
-                    ? followingField.length
-                    : (followingField ?? 0);
+                final followersCount =
+                    (data['followers'] as List?)?.length ?? 0;
+                final followingCount =
+                    (data['following'] as List?)?.length ?? 0;
 
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -316,10 +335,9 @@ class _UserPageState extends State<UserPage> {
                 );
               },
             ),
-
             const SizedBox(height: 20),
 
-            // Reviews Grid
+            // Reviews
             const Text(
               'Reviews',
               style: TextStyle(

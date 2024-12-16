@@ -50,8 +50,8 @@ class _UploadingPageState extends State<UploadingPage> {
 
   File? _selectedImage;
   String _selectedRestaurant = '';
-  String? _restaurantLatitude; // To store restaurant latitude
-  String? _restaurantLongitude; // To store restaurant longitude
+  double? _restaurantLatitude; // To store restaurant latitude
+  double? _restaurantLongitude; // To store restaurant longitude
   double _rating = 3.0; // Default rating
   bool _isLoadingRestaurants = false;
   bool _isSubmitting = false;
@@ -174,10 +174,8 @@ class _UploadingPageState extends State<UploadingPage> {
                   onTap: () {
                     setState(() {
                       _selectedRestaurant = restaurantName;
-                      _restaurantLatitude =
-                          restaurantLocation?.lat.toString() ?? '0.0';
-                      _restaurantLongitude =
-                          restaurantLocation?.lng.toString() ?? '0.0';
+                      _restaurantLatitude = restaurantLocation?.lat ?? 0.0;
+                      _restaurantLongitude = restaurantLocation?.lng ?? 0.0;
                     });
                     Navigator.of(context).pop();
                   },
@@ -255,10 +253,8 @@ class _UploadingPageState extends State<UploadingPage> {
         "reviewId": reviewId,
         "userId": widget.userId,
         "restaurantName": _selectedRestaurant,
-        "restaurantLocation": GeoPoint(
-          double.parse(_restaurantLatitude!),
-          double.parse(_restaurantLongitude!),
-        ),
+        "latitude": _restaurantLatitude!,
+        "longitude": _restaurantLongitude!,
         "description": _descriptionController.text,
         "rating": _rating,
         "imageUrl": imageUrl,
@@ -325,8 +321,10 @@ class _UploadingPageState extends State<UploadingPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Upload Review'),
+        title:
+            const Text('Upload Review', style: TextStyle(color: Colors.white)),
         backgroundColor: Colors.black,
       ),
       body: SingleChildScrollView(
@@ -358,7 +356,7 @@ class _UploadingPageState extends State<UploadingPage> {
             // Restaurant Selection
             const Text(
               'Restaurant Name',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 18, color: Colors.grey),
             ),
             const SizedBox(height: 10),
             Row(
@@ -368,7 +366,7 @@ class _UploadingPageState extends State<UploadingPage> {
                     _selectedRestaurant.isNotEmpty
                         ? 'Selected: $_selectedRestaurant'
                         : 'No restaurant selected.',
-                    style: const TextStyle(fontSize: 16),
+                    style: const TextStyle(fontSize: 16, color: Colors.white38),
                   ),
                 ),
                 if (_isLoadingRestaurants)
@@ -385,10 +383,14 @@ class _UploadingPageState extends State<UploadingPage> {
             // Description Field
             const Text(
               'Description',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white70),
             ),
             const SizedBox(height: 10),
             TextField(
+              style: const TextStyle(color: Colors.white),
               controller: _descriptionController,
               maxLines: 4,
               decoration: InputDecoration(
@@ -403,14 +405,19 @@ class _UploadingPageState extends State<UploadingPage> {
             // Rating Slider
             const Text(
               'Rating',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  fontSize: 18, color: Color.fromARGB(255, 255, 226, 130)),
             ),
             Slider(
               value: _rating,
               min: 1.0,
               max: 5.0,
               divisions: 40,
+              thumbColor: Color.fromARGB(255, 255, 215, 86),
+              activeColor: Color.fromARGB(255, 162, 124, 0),
               label: _rating.toStringAsFixed(1),
+              // Rating Text Color
+              inactiveColor: Colors.white38,
               onChanged: (value) {
                 setState(() {
                   _rating = value;
