@@ -147,6 +147,8 @@ class _DiscoverPageState extends State<DiscoverPage> {
           .collection('reviews')
           .where('latitude', isGreaterThanOrEqualTo: latMin)
           .where('latitude', isLessThanOrEqualTo: latMax)
+          .where('longitude', isGreaterThanOrEqualTo: lngMin)
+          .where('longitude', isLessThanOrEqualTo: lngMax)
           .get();
 
       final List<Map<String, dynamic>> reviews = [];

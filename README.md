@@ -22,7 +22,7 @@ Users can upload multiple photos from their dining experiences, give ratings (1â
 - Like and interact with reviews
 
 ## **Grade Ambition**
-My goal is to achieve  a **5** by implementing and documenting sufficient point-earning features as per the project requirements. I aim to collect at least **17 points** through a combination of technical and entrepreneurial aspects.
+My goal is to achieve  a **5** by implementing and documenting sufficient point-earning features as per the project requirements. I aim to collect at least **17 points** through a combination of technical and entrepreneurial criterias.
 
 ---
 
@@ -49,8 +49,6 @@ These features are fundamental to the app's functionality and have been implemen
 ---
 
 ### **Technical Requirements**
-- **Handling Large and Small Screens (1 point):**  
-  `MediaQuery` is used to dynamically adjust the layout based on screen size, for instance, in the `LoginPage`.
 
 - **Sensor Integration (1 point):**  
   GPS is used in the `NearbyRestaurantsService` to find restaurants near the user's location.
@@ -100,3 +98,4 @@ I hope these aspects can be considered as additional entrepreneurial innovations
 https://www.youtube.com/watch?v=P6xEgPZ-ufk
 
 #### Link to finished demo - screencast
+https://www.youtube.com/watch?v=zy-FOiO47pA
